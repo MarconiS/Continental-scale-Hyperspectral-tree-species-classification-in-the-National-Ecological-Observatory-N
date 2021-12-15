@@ -179,7 +179,9 @@ accuracy_and_uncertainty = function(vst_pt = "./indir/vst.csv"
   #plot geographic accuracy
   plot_figure_3(microF1_dom, microF1_site, macroF1_site)
 
+  figure_4()
   
+  figure_1()
   
   # uncertainty quantitative analysis using ranking
   # Can we look at it more continuosly: 0-10 which fraction correctly classified? 
