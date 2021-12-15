@@ -1,16 +1,17 @@
 #Figure results
 # US map, colored by domains by macro F1, site size?
-plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site, ){
+plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site){
   library(sf)
   library(usmap)
   library("rnaturalearth")
   library("rnaturalearthdata")
-  
-  us <- ne_countries(scale = "medium", returnclass = "sp") %>% filter( name == "United States")
+  library(rgeos)
+  us <- ne_countries(scale = "medium", returnclass = "sf") %>% 
+    dplyr::filter( name == "United States")
   us = st_crop(us, c( xmin= -120.1945, ymin= 18.96392, xmax= 179.78, ymax= 71.40767))
-  neon_domain = read_sf("./indir/NEON_Domains.shp")
+  neon_domain = read_sf("./indir/NEONDomains_shp/NEON_Domains.shp")
   neon_sites = vst %>% select(siteID, latitude, longitude)%>%
-    group_by(siteID)%>% summarize_all(mean)
+    group_by(siteID)%>% summarize_all(mean, na.rm=T)
   
   # append accuracy to site & domain
   
@@ -51,6 +52,7 @@ plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site, ){
     #color = "darkblue", fontface = "bold", check_overlap = T, ) +
     theme_bw() + theme(legend.position = "bottom")+
     coord_sf(crs = "+proj=laea +lat_0=30 +lon_0=-20 +ellps=GRS80 +units=m +no_defs ")
+  ggsave("./figures/Figure_3_geographic_globe.png")
   
   #figure 3
   ggplot(neon_sites, aes(x = longitude, y = microF1_site)) + geom_point()+
@@ -58,7 +60,7 @@ plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site, ){
               color = "darkblue", fontface = "bold", check_overlap = T) +theme_bw() + 
     geom_vline(xintercept = -140) + geom_vline(xintercept = -115) + geom_vline(xintercept = -95)
   #geom_vline(xintercept = -140) + geom_vline(xintercept = -115) + geom_vline(xintercept = -95)
-  ggsave("./figures/geographic_f1.png")
+  ggsave("./figures/Figure_3_geographic_f1_xy.png")
   
   neon_sites = left_join(neon_sites, species_per_site)
   
@@ -116,5 +118,7 @@ figure_2 = function(pairs, vst){
     geom_text(aes(x = value, y = -0.03, label = total), size=3)+
     theme(legend.position = "bottom", 
           axis.text.x = element_text(angle = 45,hjust=1)) + ggsci::scale_fill_jco()
+  ggsave("./Figures/Figure_2.png")
+  
   
 }

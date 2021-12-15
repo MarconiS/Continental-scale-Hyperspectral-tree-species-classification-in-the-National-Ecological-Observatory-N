@@ -2,21 +2,34 @@
 library(tidyverse)
 library(caret)
 library(data.table)
-accuracy_and_uncertainty = function(vst){
-  pairs = readr::read_csv("/Users/sergiomarconi/Downloads/species_results/ALL_final_kld_pairs.csv")
-  probabilities = readr::read_csv("/Users/sergiomarconi/Downloads/species_results/ALL_final_kld_probabilities.csv")
+accuracy_and_uncertainty = function(vst_pt = "./indir/vst.csv"
+                                    , pairs_sp_pt = "./outdir/site_and_overall_results/ALL_final_kld_pairs.csv"
+                                    , pairs_sp_prob = "./outdir/site_and_overall_results/ALL_final_kld_probabilities.csv"
+                                    , pairs_fam_pt = "./outdir/site_and_overall_results/ALL_final_family_predictions.csv"
+                                    #, pairs_fam_prob = "./outdir/site_and_overall_results/ALL_final_kld_probabilities.csv"
+                                    ){
+  r_sources = list.files("./src/R/functions/")
+  sapply(paste("./src/R/functions/", r_sources, sep=""), source)
+  vst = fread(vst_pt) #%>% filter(height > 3)
+  
+  pairs = readr::read_csv(pairs_sp_pt)
+  probabilities = readr::read_csv(pairs_sp_prob)
   colnames(pairs)=c("id", "individualID", "obs", "pred")
+  
   pairs$domainID = substr(pairs$individualID, 10,12)
   pairs$siteID = substr(pairs$individualID, 14,17)
   
   sp_in_dat = pairs$obs %>% data.frame
   colnames(sp_in_dat) = "taxonID"
   
-  pairs = pairs %>% filter(!individualID %in% full_shaded_ids$individualID)
-  probabilities = probabilities %>% filter(!individualID %in% full_shaded_ids$individualID)
+  #remove trees that are fully shaded in the target year
   full_shaded_ids = vst %>% 
     filter(!str_detect(plantStatus,"Live")) %>%
     select(individualID) %>% unique
+  
+  pairs = pairs %>% filter(!individualID %in% full_shaded_ids$individualID)
+  probabilities = probabilities %>% filter(!individualID %in% full_shaded_ids$individualID)
+
   
   vst = vst %>% 
     filter(str_detect(growthForm,"tree")) %>%
@@ -30,10 +43,11 @@ accuracy_and_uncertainty = function(vst){
   pairs = pairs %>% filter(!obs %in% c("THUJA", "ILAN", "MORU2", "ABAM")) %>%
     filter(!siteID %in% c("HEAL", "PUUM"))
   #species_per_site = vst %>% filter(taxonID %in% tree_species$taxonID)  
-  tot_species = vst %>% select(taxonID, siteID) %>% group_by(siteID) %>% table
-  data = data.table::fread("./indir/metadata.csv") %>%
+  tot_species = vst %>% filter(!siteID %in% c("HEAL", "PUUM")) %>% select(taxonID, siteID) %>% group_by(siteID) %>% table
+  data = data.table::fread("./outdir/metadata.csv") %>%
     filter(!taxonID %in% c("ABIES", "BETUL", "FRAXI", "SALIX", "2PLANT", "GLTR", "SASSA", "GYDI",
-                           "OXYDE", "HALES", "PINUS", "QUERC", "PICEA", "ULMUS", "MAGNO", "LARIX"))
+                           "OXYDE", "HALES", "PINUS", "QUERC", "PICEA", "ULMUS", "MAGNO", "LARIX")) %>%
+    filter(!siteID %in% c("HEAL", "PUUM"))
   #data %>% select(individualID, groupID, siteID, plotID) %>% unique %>% write_csv("./outputs/ids_split.csv")
   #want to check how many species out of the total we have in the dataset for each site
   spst = spdt = spid =summary_freqs = sp_tested_in_site =  needed_missing = list()
@@ -63,8 +77,8 @@ accuracy_and_uncertainty = function(vst){
   overview_species_sites = cbind.data.frame(colnames(tot_species), species_per_site, species_per_test)
   
   
-  sp_st = lapply(1:29, function(x) length(spst[[x]]))
-  sp_fr = lapply(1:29, function(x) sum(spdt[[x]]))
+  sp_st = lapply(1:27, function(x) length(spst[[x]]))
+  sp_fr = lapply(1:27, function(x) sum(spdt[[x]]))
   sp_st = unlist(sp_st) %>% data.frame
   colnames(sp_st) = "alpha"
   sp_st[["siteID"]] = unlist(spid)
@@ -74,11 +88,12 @@ accuracy_and_uncertainty = function(vst){
   
   sp_st = reshape2::melt(sp_st, "siteID")
   sp_st$siteID = factor(sp_st$siteID, levels = ordered_dat)
-  ggplot(sp_st, aes(fill=variable, y=value, x=siteID)) + 
-    geom_bar(position="dodge", stat="identity") + 
-    theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) 
-  
-  
+  #unused plot: plottin the total number of speices. Now in the bottom of supplement figure as text information
+  # ggplot(sp_st, aes(fill=variable, y=value, x=siteID)) + 
+  #   geom_bar(position="dodge", stat="identity") + 
+  #   theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) 
+  # 
+  # 
   
   
   #overall statistics
@@ -96,7 +111,7 @@ accuracy_and_uncertainty = function(vst){
   
   #domain level statistics
   cm = list()
-  microF1 = list()
+  microF1 = macroF1 = list()
   for(dm in unique(pairs$domainID)){
     dm_dt = pairs %>% filter(domainID == dm)
     
@@ -107,14 +122,17 @@ accuracy_and_uncertainty = function(vst){
     #mcm = as.matrix.data.frame(cmdm$table)
     #rownames(mcm) = colnames(mcm) = colnames(cmdm$table)
     microF1[[dm]] <- cmdm$overall[1]
+    macroF1[[dm]] = mean(cmdm$byClass[,"F1"], na.rm=T)
     cm[[dm]] = cmdm
   }
   microF1_dom = unlist(microF1)
+  macroF1_dom = unlist(macroF1)
+  
   cm_dom = cm
   
   #site_level stats
   cm = list()
-  microF1 = list()
+  microF1 = macroF1 = list()
   for(dm in unique(pairs$siteID)){
     dm_dt = pairs %>% filter(siteID == dm)
     
@@ -125,9 +143,12 @@ accuracy_and_uncertainty = function(vst){
     #mcm = as.matrix.data.frame(cmdm$table)
     #rownames(mcm) = colnames(mcm) = colnames(cmdm$table)
     microF1[[dm]] <- cmdm$overall[1]
+    macroF1[[dm]] = mean(cmdm$byClass[,"F1"], na.rm=T)
     cm[[dm]] = cmdm
   }
   microF1_site= unlist(microF1)
+  macroF1_site= unlist(macroF1)
+  
   microF1_site
   
   site_pairs = pairs %>% group_by(siteID) %>% select(obs) %>% table 
@@ -149,40 +170,22 @@ accuracy_and_uncertainty = function(vst){
   sp_co = cmdm$table
   sp_co = cmdm$table %>% data.frame
   sp_co = sp_co %>% filter(Freq > 0)
-  write_csv(sp_co, "./outputs/species_confusion.csv")
+  write_csv(sp_co, "./outdir/species_confusion.csv")
+  
+  
+  #plot distribution of confusion by health class
+  figure_2(pairs, vst)
+  
+  #plot geographic accuracy
+  plot_figure_3(microF1_dom, microF1_site, macroF1_site)
+
+  
   
   # uncertainty quantitative analysis using ranking
   # Can we look at it more continuosly: 0-10 which fraction correctly classified? 
-  all_pdist = probabilities %>% select(-one_of("id","X1", "individualID", "effort","max_pid", "confused")) 
-  p_max = apply(all_pdist[,-c(1:7)], 1, function(x)(max(x)))
-  who_max = lapply(1:nrow(all_pdist), function(x)(colnames(all_pdist[which(all_pdist[x,]==p_max[x])])))
-  who_max = unlist(who_max)
-  
-  final_boxes = cbind.data.frame(all_pdist[["taxonID"]], who_max, p_max)
-  bin = c(0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1)
-  bin = seq(0,1,by=0.03)
-  fraction_ = rep(NA, length(bin))
-  for(ii in 2:(length(bin)+1)){
-    ith_class = final_boxes %>% filter(final_boxes$p_max < bin[ii] & 
-                                         final_boxes$p_max > bin[ii-1])
-    fraction_[ii-1] = sum(ith_class[,1] != ith_class[,2])/nrow(ith_class)
-    fraction_[is.nan(fraction_)]=0
-  }
-  
-  uncertainty_curve = cbind.data.frame(bin, fraction_)
-  colnames(uncertainty_curve) = c("majority_p", "fraction_misclassified")
-  ggplot(uncertainty_curve, aes(x = majority_p, y = 1-fraction_misclassified)) + ylim(0,1) + xlim(0,1)+
-    geom_point() + theme_bw() + geom_abline(intercept = 0, slope = 1) + stat_smooth(method="lm", se=FALSE)
-  ggsave("./Figures/figure_5.png")
-  uu = lm(majority_p~fraction_misclassified, data = uncertainty_curve)
-  uu = summary(uu)
-  uu$adj.r.squared
-  
-  
-  
-  
+  figure_6(pairs, probabilities)
   #family confusion
-  pairs = readr::read_csv("/Volumes/Data/speciesClassificationResults/BRDF_April_family_predictions.csv")
+  pairs = readr::read_csv(pairs_fam_pt)
   colnames(pairs)=c("id", "obs", "pred")
   dm_dt = pairs
   genuses = c(pairs$obs, pairs$pred) %>% unique
@@ -193,5 +196,8 @@ accuracy_and_uncertainty = function(vst){
   sp_co = cmdm$table
   sp_co = cmdm$table %>% data.frame
   sp_co = sp_co %>% filter(Freq > 0)
-  write_csv(sp_co, "./outputs/genuses_confusion.csv")
+  write_csv(sp_co, "./outdir/genuses_confusion.csv")
+  
+
+    
 }

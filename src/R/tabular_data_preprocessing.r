@@ -1,6 +1,7 @@
 library(tidyverse)
 library(data.table)
-source("./functions/data_preprocessing.r")
+r_sources = list.files("./src/R/functions/")
+sapply(paste("./src/R/functions/", r_sources, sep=""), source)
 csv_vst = fread("./indir/vst.csv") #%>% filter(height > 3)
 
 #select live trees

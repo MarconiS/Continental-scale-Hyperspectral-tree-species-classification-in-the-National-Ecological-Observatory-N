@@ -2,7 +2,7 @@
 library(tidyverse)
 library(caret)
 library(data.table)
-source("./R/ML_f1_scores.R")
+source("./src/R/functions/ML_f1_scores.R")
 get.conf.stats <- function(cm) {
   out <- vector("list", length(cm))
   for (i in seq_along(cm)) {

@@ -14,3 +14,4 @@ ggplot(classes_, aes(x = taxon, y = value, color = variable, alpha = 0.5)) +
         panel.grid.major.y = element_blank(), axis.title.x=element_blank())
 
 }
+
