@@ -18,6 +18,7 @@ An example on how to achieve it:
 `r_sources = list.files("./src/R/functions/")`
 
 `sapply(paste("./src/R/functions/", r_sources, sep=""), source)`
+
 `run_data_filtering()`
 
 To reproduce the model training and testing, run the `species_classification_sript.py` python script in `src/Python`. This script will perform training and testing and generate outputs for the test set. Beware, this step will likely take hours.
