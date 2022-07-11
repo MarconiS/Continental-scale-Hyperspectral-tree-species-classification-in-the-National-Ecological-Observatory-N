@@ -1,6 +1,6 @@
 #Figure results
 # US map, colored by domains by macro F1, site size?
-plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site,species_per_site){
+plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site){
   library(sf)
   library(usmap)
   library("rnaturalearth")
@@ -14,23 +14,20 @@ plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site,species_per_sit
     group_by(siteID)%>% summarize_all(mean, na.rm=T)
   
   # append accuracy to site & domain
-  microF1_dom = data.frame(microF1_dom)
   
-  rownames(microF1_dom) = substr(rownames(microF1_dom), 1,3)
-  rownames(microF1_site) = microF1_site$Site #substr((microF1_site$Site))#, 1,4)
+  names(microF1_dom) = substr(names(microF1_dom), 1,3)
+  names(microF1_site) = substr(names(microF1_site), 1,4)
+  microF1_dom = data.frame(microF1_dom)
   microF1_dom$DomainID = as.integer(substr(rownames(microF1_dom), 2,3))
   microF1_site = data.frame(microF1_site)
   microF1_site$siteID = rownames(microF1_site)
   macroF1_site = data.frame(macroF1_site)
-  macroF1_site$siteID = macroF1_site$Site  #rownames(macroF1_site)
-  colnames(microF1_site)[2] = "MicroF1"
-  colnames(macroF1_site)[2] = "MacroF1"
-  
+  macroF1_site$siteID = rownames(macroF1_site)
   neon_sites = inner_join(neon_sites, microF1_site)
   neon_sites = inner_join(neon_sites, macroF1_site)
   
   neon_domain_ = left_join(neon_domain, microF1_dom)
-  neon_domain_ = neon_domain_ %>% filter(!is.na(microF1_dom))
+  neon_domain_ = neon_domain_ %>% dplyr::filter(!is.na(microF1_dom))
   neon_domain_ = neon_domain_ %>% filter(OBJECTID !=50)
   
   neon_sites_ = sf::st_as_sf(neon_sites,coords = c("longitude", "latitude"), crs = 4326)
@@ -58,8 +55,8 @@ plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site,species_per_sit
   ggsave("./figures/Figure_3_geographic_globe.png")
   
   #figure 3
-  ggplot(neon_sites, aes(x = longitude, y = MicroF1)) + geom_point()+
-    geom_text(data= neon_sites,aes(x=longitude, y=MicroF1+0.03, label=siteID),
+  ggplot(neon_sites, aes(x = longitude, y = microF1_site)) + geom_point()+
+    geom_text(data= neon_sites,aes(x=longitude, y=microF1_site+0.03, label=siteID),
               color = "darkblue", fontface = "bold", check_overlap = T) +theme_bw() + 
     geom_vline(xintercept = -140) + geom_vline(xintercept = -115) + geom_vline(xintercept = -95)
   #geom_vline(xintercept = -140) + geom_vline(xintercept = -115) + geom_vline(xintercept = -95)
@@ -67,25 +64,25 @@ plot_figure_3 = function(microF1_dom, microF1_site, macroF1_site,species_per_sit
   
   neon_sites = left_join(neon_sites, species_per_site)
   
-  ggplot(neon_sites, aes(x = count, y = MicroF1)) +
+  ggplot(neon_sites, aes(x = count, y = microF1_site)) +
     geom_smooth(method = "gam",)+ ylim(0,1.2) + geom_point() +
-    geom_text(data= neon_sites,aes(x=count, y=MicroF1+0.03, label=siteID),
+    geom_text(data= neon_sites,aes(x=count, y=microF1_site+0.03, label=siteID),
               color = "darkblue", fontface = "bold", check_overlap = T) +theme_bw() 
   ggsave("./figures/micro_f1_per_species.png")
   
-  ggplot(neon_sites, aes(y = MicroF1))+geom_density(fill = "darkblue", 
-    alpha = 0.2) + theme_bw() + geom_hline(yintercept = 0.77)+ ylim(0,1.2) +
+  ggplot(neon_sites, aes(y = microF1_site))+geom_density(fill = "darkblue", 
+                                                         alpha = 0.2) + theme_bw() + geom_hline(yintercept = 0.77)+ ylim(0,1.2) +
     theme( panel.grid.major = element_blank(),
            panel.grid.minor = element_blank())
   ggsave("./figures/micro_f1_site.png")
-  ggplot(neon_sites, aes(x = count, y = MacroF1)) + geom_point()+
+  ggplot(neon_sites, aes(x = count, y = macroF1_site)) + geom_point()+
     geom_smooth(method = "gam", color = "darkorange2")+ ylim(0,1.2) +
-    geom_text(data= neon_sites,aes(x=count, y=MacroF1+0.03, label=siteID),
+    geom_text(data= neon_sites,aes(x=count, y=macroF1_site+0.03, label=siteID),
               color = "darkorange4", fontface = "bold", check_overlap = T) +theme_bw() 
   ggsave("./figures/macro_f1_per_species.png")
   
-  ggplot(neon_sites, aes(y = MacroF1))+geom_density(fill = "darkorange4", 
- alpha = 0.2) + theme_bw() + geom_hline(yintercept = .547)+ ylim(0,1.2) +
+  ggplot(neon_sites, aes(y = macroF1_site))+geom_density(fill = "darkorange4", 
+                                                         alpha = 0.2) + theme_bw() + geom_hline(yintercept = .547)+ ylim(0,1.2) +
     theme( panel.grid.major = element_blank(),
            panel.grid.minor = element_blank())
   ggsave("./figures/macro_f1_site.png")
@@ -121,7 +118,6 @@ figure_2 = function(pairs, vst){
     geom_text(aes(x = value, y = -0.03, label = total), size=3)+
     theme(legend.position = "bottom", 
           axis.text.x = element_text(angle = 45,hjust=1)) + ggsci::scale_fill_jco()
-   
   ggsave("./Figures/Figure_2.png")
   
   
