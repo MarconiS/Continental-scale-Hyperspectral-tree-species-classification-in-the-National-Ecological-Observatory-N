@@ -21,7 +21,7 @@ An example on how to achieve it:
 
 `run_data_filtering()`
 
-To reproduce the model training and testing, run the `species_classification_sript.py` python script in `src/Python`. This script will perform training and testing and generate outputs for the test set. Beware, this step will likely take hours.
+To reproduce the model training and testing, download the data from the Zenodo archive ("https://zenodo.org/record/7187242") and unzip the `data` folder. This will ensure you are using the same train/test split fron the paper. Run the `species_classification_sript.py` python script in `src/Python`. This script will perform training and testing and generate outputs for the test set. Beware, this step will likely take hours.
 To reproduce model training and testing for each individual site, run the `site_level_loop_script.py`
 
 To perform outputs analysis and generate figures 1-4 and 6, run the `accuracy_and_uncertainty()` function in `src/R`.
