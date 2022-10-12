@@ -8,6 +8,7 @@ Created on Wed Dec 15 16:05:26 2021
 
 import numpy as np
 import pandas as pd
+import glob
 
 import pickle
 from sklearn.ensemble import RandomForestClassifier
@@ -26,8 +27,18 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import normalize
 
-from imblearn.ensemble import BalancedRandomForestClassifier
-from imblearn.ensemble import RUSBoostClassifier
+import os
+
+from sklearn.preprocessing import LabelEncoder
+from sklearn.decomposition import PCA
+from imblearn.over_sampling import SMOTENC
+from imblearn.over_sampling import ADASYN
+from imblearn.under_sampling import TomekLinks 
+from collections import Counter    
+from src.Python.hdr import *
+from sklearn.preprocessing import normalize
+
+
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.svm import SVC
 import category_encoders as ce
@@ -193,24 +204,6 @@ species_to_genus = {
         'ULRU':"UL",
         }
 
-import os
-os.chdir("/blue/ewhite/s.marconi/NeonSpeciesClassification/")
-
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import LabelEncoder
-import numpy as np
-import pandas as pd
-from sklearn.decomposition import PCA
-
-from imblearn.over_sampling import SMOTENC
-from imblearn.over_sampling import ADASYN
-from imblearn.under_sampling import TomekLinks 
-from collections import Counter    
-from src.hdr import *
-from sklearn.preprocessing import normalize
-
-
-
 domainid = {
   "BART": "D01",
   "HARV": "D01",
@@ -299,18 +292,18 @@ def kld_reduction(brick, kld_out):
     return all_data
 
 
-
-brick = pd.read_csv("./data/features_0411.csv")      #"./data/brdf_spectra_2104b.csv") 
-metadata = pd.read_csv("./data/metadata_0411.csv")        #"./data/metadata_2104b.csv") 
-metadata = metadata[["individualID", "groupID", "plotID","siteID","elevation","latitude", "longitude", 
-                     "taxonID"]]  
+feats_pt = glob.glob('./data/features*.csv')
+brick = pd.read_csv(feats_pt[0])      #"./data/brdf_spectra_2104b.csv") 
+metadata_pt = glob.glob('./data/metadata_*.csv')
+metadata = pd.read_csv(metadata_pt[0])        #"./data/metadata_2104b.csv") 
+metadata = metadata[["individualID", "groupID", "plotID","siteID","elevation","latitude", "longitude", "taxonID"]]  
 kld_out="./data/0411.csv"#"./data/kld_grps_2104b.csv"
 nbands = brick.shape[0]
 brick.iloc[:,1:nbands] = normalize(brick.iloc[:,1:nbands])
 brick = kld_reduction(brick, kld_out)
 foo = brick.drop(columns=[ 'individualID'])
 
-metadata = metadata.join(elevation.set_index('individualID'), on='individualID')
+#metadata = metadata.join(elevation.set_index('individualID'), on='individualID')
 metadata = metadata.dropna()
 
 siteID =  "ALL" #"D01"
@@ -356,6 +349,19 @@ cols = np.arange(start = 2, stop = cat_col-2, step=3)
 cat_col = X_train.shape[1]
 X_train.columns
 
+#undersample  
+from imblearn.under_sampling import RandomUnderSampler
+from imblearn.under_sampling import NeighbourhoodCleaningRule
+from imblearn.under_sampling import TomekLinks 
+from imblearn.combine import SMOTETomek 
+
+min_class = Counter(y_train.taxonID)
+min_class = min_class[min(min_class, key=min_class.get)]
+
+print(min_class)
+smotenc = SMOTENC(random_state=0, categorical_features = [0,cat_col-2,cat_col-1], k_neighbors=min_class-1)
+smt = SMOTETomek(random_state=42, smote=smotenc)
+X_res, y_res = smt.fit_resample(X_train, y_train)
 #turn site in encoded effect
 new_df = pd.merge(X_res, ave_coords,  how='left', left_on=['latitude', 'longitude'], right_on = ['latitude', 'longitude'])
 df=new_df[~new_df['siteID'].isna()]
@@ -408,8 +414,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 
 
-from imblearn.ensemble import BalancedRandomForestClassifier
-from imblearn.ensemble import RUSBoostClassifier
+
+
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
@@ -516,17 +522,16 @@ rep_fam
 #siteID = "BRDF_April"
 test_families = pd.concat([pd.Series(obs), pd.Series(pred)], axis=1) 
 test_families = test_families.rename(columns={0: "observed", 1: "predicted"})
-test_families.to_csv("./outputs/"+siteID+"_final_"+"family_predictions.csv")   
+test_families.to_csv("./outdir/"+siteID+"_final_"+"family_predictions.csv")   
 cm_fam = confusion_matrix(obs, pred)
 cm_fam = pd.DataFrame(cm_fam, columns = rep_fam.index[0:-3], index = rep_fam.index[0:-3])
 
-eval_an.to_csv("./outputs/"+siteID+"_final_"+"kld_probabilities.csv")
-pd.DataFrame(np.c_[eval_an[['individualID','taxonID']], pred_itc]).to_csv("./outputs/"+siteID+"_final_"+"kld_pairs.csv")
-pd.DataFrame(taxa_classes).to_csv("./outputs/taxonID_dict"+"_final_"+siteID+".csv")
+eval_an.to_csv("./outdir/"+siteID+"_final_"+"kld_probabilities.csv")
+pd.DataFrame(np.c_[eval_an[['individualID','taxonID']], pred_itc]).to_csv("./outdir/"+siteID+"_final_"+"kld_pairs.csv")
+pd.DataFrame(taxa_classes).to_csv("./outdir/taxonID_dict"+"_final_"+siteID+".csv")
 
 
 import joblib
-mod_out_pt = "./outputs/model_"+siteID+'_final_model.pkl'
+mod_out_pt = "./outdir/model_"+siteID+'_final_model.pkl'
 joblib.dump(clf_bl2, mod_out_pt)
-
 
