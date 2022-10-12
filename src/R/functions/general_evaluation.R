@@ -278,7 +278,7 @@ accuracy_and_uncertainty = function(
   sp_co = sp_co %>% filter(Freq > 0)
   #write_csv(sp_co, "./outdir/species_confusion_june23.csv")
 
-  figure_1(pairs, vst)
+  figure_1(pairs, data)
 
   #plot distribution of confusion by health class
   figure_2(pairs, vst)
@@ -296,29 +296,37 @@ accuracy_and_uncertainty = function(
   pairs = readr::read_csv(pairs_fam_pt)
   pairs = cbind.data.frame(pairs, pp)
   colnames(pairs)=c("id", "obs", "pred", "i", "individualID", "obs_sp", "pred_sp")
-
+  
+  ee = vst %>% select(taxonID, scientificName) %>% unique
+  ee$genus = do.call(rbind.data.frame, strsplit(ee$scientificName, split = " "))[,1]
+  ee = unique(ee)
+  ee = ee %>% select(taxonID, genus)
+  colnames(ee) = c("obs_sp", "obs_scientific")
+  pairs = left_join(pairs, ee)
+  colnames(ee) = c("pred_sp", "pred_scientific")
+  pairs = left_join(pairs, ee)
+  
   pairs = pairs %>% filter(individualID %in% ids_and_genus$individualID)
-  ids_and_genus$obs_scientific = do.call(rbind.data.frame, strsplit(ids_and_genus$obs_scientific, split = " "))[,1]
-  ids_and_genus$pred_scientific = do.call(rbind.data.frame, strsplit(ids_and_genus$pred_scientific, split = " "))[,1]
-  dm_dt = ids_and_genus
+  #ids_and_genus$obs_scientific = do.call(rbind.data.frame, strsplit(ids_and_genus$obs_scientific, split = " "))[,1]
+  #ids_and_genus$pred_scientific = do.call(rbind.data.frame, strsplit(ids_and_genus$pred_scientific, split = " "))[,1]
+  dm_dt = pairs
   genuses = c(dm_dt$obs_scientific, dm_dt$pred_scientific) %>% unique
   #lvls = unique(c(unique(genuses$obs), unique(genuses$pred)))
   dm_dt$obs = factor(dm_dt$obs_scientific, levels = unique(genuses))
   dm_dt$pred = factor(dm_dt$pred_scientific, levels = unique(genuses))
   cmdm = confusionMatrix(dm_dt$obs, dm_dt$pred)
   print(cmdm$overall)
-
+  
   conf  = as.matrix(cmdm)
   conf = conf %>% t
   conf = cbind.data.frame(rownames(conf), conf)
   write_csv(data.frame(conf), paste("./outdir/cm/Family_level_confusion_matrix.csv", sep=""))
-
-
+  
+  
   sp_co = cmdm$table
   sp_co = cmdm$table %>% data.frame
   sp_co = sp_co %>% filter(Freq > 0)
   write_csv(sp_co, "./outdir/genuses_confusion.csv")
-
-
+  
 
 }
