@@ -1,3 +1,6 @@
+[![DOI](https://zenodo.org/badge/438351176.svg)](https://zenodo.org/badge/latestdoi/438351176)
+
+
 # Continental-scale-Hyperspectral-tree-species-classification-in-the-National-Ecological-Observatory-N
 
 This repo contains the code for reproducing data cleaning, model developing, evaluation and all the analyses from the manuscript: Continental-scale Hyperspectral tree species classification in the National Ecological Observatory Network.
