@@ -35,7 +35,7 @@ from imblearn.over_sampling import SMOTENC
 from imblearn.over_sampling import ADASYN
 from imblearn.under_sampling import TomekLinks 
 from collections import Counter    
-from src.Python.hdr import *
+from hdr import *
 from sklearn.preprocessing import normalize
 
 
